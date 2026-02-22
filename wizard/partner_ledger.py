@@ -1,0 +1,27 @@
+# -*- coding: utf-8 -*-
+
+from odoo import models, fields, api
+
+
+class MotsoftPartnerLedger(models.TransientModel):
+    _name = 'motsoft.partner.ledger'
+    _description = "Libro Mayor Empresa"
+
+    company_name = fields.Char(default=lambda self: self.env.company.name, readonly=True)
+
+    date_start = fields.Date(string="Fecha de inicio", default='2023-01-01')
+    date_end = fields.Date(string="Fecha final", default='2023-12-31')
+
+    account_ids = fields.Many2many(
+        comodel_name='account.account',
+        string='Cuentas Contables',
+        default=lambda self: self.env['account.account'].search([
+            ('code', 'in', ['400000', '410000']),  # tu dominio
+        ])
+    )
+
+    def action_print(self):
+
+        return self.env.ref(
+            'motsoft_partner_ledger.partner_ledger_report'
+        ).report_action(self)
