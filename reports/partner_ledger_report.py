@@ -31,26 +31,6 @@ class ReportPartnerLedger(models.AbstractModel):
             'formatLang':   formatLang,   # <-- lo inyectamos aquí
         }
 
-    # def get_partners_by_account(self, date_start, date_end, account_ids):
-    #
-    #     account_codes = account_ids.mapped('code')
-    #
-    #     query = """
-    #             SELECT aa.code as account_code, rp.id AS partner_id, rp.name, SUM(balance) AS balance
-    #             FROM account_move_line AS aml
-    #                      JOIN account_account AS aa ON aml.account_id = aa.id
-    #                      JOIN res_partner AS rp ON aml.partner_id = rp.id
-    #             WHERE aa.code IN %s
-    #               AND aml.date >= %s
-    #               AND aml.date <= %s
-    #             GROUP BY aa.code, rp.id, rp.name
-    #             HAVING SUM(balance) <> 0.0
-    #             ORDER BY aa.code, rp.name \
-    #             """
-    #
-    #     self.env.cr.execute(query, [tuple(account_codes), date_start, date_end])
-    #     return self.env.cr.dictfetchall()
-
     def get_partners_by_account(self, date_start, date_end, account_ids):
         account_codes = account_ids.mapped('code')
 

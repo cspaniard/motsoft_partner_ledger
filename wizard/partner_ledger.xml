@@ -35,7 +35,7 @@
     <menuitem id="menu_partner_ledger"
               name="Libro Mayor Empresa"
               sequence="5"
-              parent="accounting_pdf_reports.menu_finance_partner_reports"
+              parent="accounting_pdf_reports.menu_finance_legal_statement"
               action="action_partner_ledger_menu"
               groups="account.group_account_invoice"/>
 

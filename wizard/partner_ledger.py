@@ -7,10 +7,10 @@ class MotsoftPartnerLedger(models.TransientModel):
     _name = 'motsoft.partner.ledger'
     _description = "Libro Mayor Empresa"
 
-    company_name = fields.Char(default=lambda self: self.env.company.name, readonly=True)
+    company_name = fields.Char(default=lambda self: self.env.user.company_id.name, readonly=True)
 
-    date_start = fields.Date(string="Fecha de inicio", default='2023-01-01')
-    date_end = fields.Date(string="Fecha final", default='2023-12-31')
+    date_start = fields.Date(string="Fecha de inicio", default='2022-01-01')
+    date_end = fields.Date(string="Fecha final", default='2022-12-31')
 
     account_ids = fields.Many2many(
         comodel_name='account.account',
