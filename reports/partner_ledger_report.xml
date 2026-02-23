@@ -5,7 +5,7 @@
 
         <template id="partner_ledger_header">
             <div class="header">
-                <div class='row' style="font-size:1.5em; font-weight:bold; margin:0px; padding:0px;">
+                <div class='col-12' style="font-size:1.5em; font-weight:bold; margin:0px; padding:0px;">
                     Listado de Cuentas
                 </div>
                 <div style="border-top: 2px solid #000; margin:0px; padding:0px"/>
@@ -21,16 +21,16 @@
 
                 <div class="row">
                     <div class="col-4">
-                        Fecha Inicio: <t t-esc="o.date_start"/>
+                        Fecha Inicio: <t t-esc="o.date_start.strftime('%d/%m/%Y')"/>
                     </div>
                     <div class="col-4">
-                        Fecha Final: <t t-esc="o.date_end"/>
+                        Fecha Final: <t t-esc="o.date_end.strftime('%d/%m/%Y')"/>
                     </div>
                 </div>
                 <div style="border-bottom: 1px solid #000; margin-top: 4px;"/>
             </div>
 
-            <t t-out="0"/>
+            <t t-raw="0"/>
         </template>
 
         <!-- TEMPLATE -->
@@ -47,32 +47,57 @@
 
                     <t t-call="motsoft_partner_ledger.partner_ledger_header">
                         <div class="page">
-                            <div style="background-color:#EEE; text-align:left;
-                                padding-left: 5px;
-                                margin-bottom: 1em;
-                                border-top: 1px solid #000;
-                                border-bottom: 1px solid #000;
-                                font-weight:bold;">
-                               <t t-esc="p['account_code']"/> - <t t-esc="p['name']"/>
-                            </div>
-                            <div class="row no-gutters"
-                                 style="border-bottom: 1px solid #000; margin: 0px; padding: 0px">
-                                <div class="col-2 text-left">Fecha</div>
-                                <div class="col-4 text-left">Referencia</div>
-                                <div class="col-2 text-right">Debe</div>
-                                <div class="col-2 text-right">Haber</div>
-                                <div class="col-2 text-right">Saldo</div>
-                            </div>
 
-                            <t t-foreach="p['lines']" t-as="line">
-                                <div class="row no-gutters" style="margin: 0px; padding: 0px">
-                                    <div class="col-2 text-left" t-esc="line['date']"/>
-                                    <div class="col-4 text-left" t-esc="line['ref']"/>
-                                    <div class="col-2 text-right" t-esc="formatLang(env, line['debit'],  digits=2)"/>
-                                    <div class="col-2 text-right" t-esc="formatLang(env, line['credit'], digits=2)"/>
-                                    <div class="col-2 text-right" t-esc="formatLang(env, line['balance_acc'], digits=2)"/>
-                                </div>
-                            </t>
+                            <table style="width:100%; border-collapse:collapse; table-layout:fixed;">
+                                <colgroup>
+                                    <col style="width:15%;"/>
+                                    <col style="width:40%;"/>
+                                    <col style="width:15%;"/>
+                                    <col style="width:15%;"/>
+                                    <col style="width:15%;"/>
+                                </colgroup>
+                                <thead>
+                                    <!-- Fila 1: nombre de cuenta -->
+                                    <tr>
+                                        <td colspan="5"
+                                            style="background-color:#EEE;
+                                                   text-align:left;
+                                                   padding-left: 5px;
+                                                   margin-top: 1em;
+                                                   margin-bottom: 1em;
+                                                   border-top: 1px solid #000;
+                                                   border-bottom: 1px solid #000;
+                                                   font-weight:bold;">
+                                            <t t-esc="p['account_code']"/> - <t t-esc="p['name']"/>
+                                        </td>
+                                    </tr>
+                                    <!-- Separación -->
+                                    <tr><td colspan="5" style="padding-top: 1em"/></tr>
+                                    <!-- Fila 2: títulos de columna -->
+                                    <tr style="border-bottom: 1px solid #000">
+                                        <th style="font-weight:normal; text-align:left;">Fecha</th>
+                                        <th style="font-weight:normal; text-align:left;">Referencia</th>
+                                        <th style="font-weight:normal; text-align:right;">Debe</th>
+                                        <th style="font-weight:normal; text-align:right;">Haber</th>
+                                        <th style="font-weight:normal; text-align:right;">Saldo</th>
+                                    </tr>
+                                    <!-- Separación -->
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="p['lines']" t-as="line">
+                                        <tr style="margin: 0px; padding: 0px;">
+                                            <td style="text-align:left;">
+                                                <t t-esc="line['date'].strftime('%d/%m/%Y')"/>
+                                            </td>
+                                            <td style="text-align:left;"  t-esc="line['ref']"/>
+                                            <td style="text-align:right;" t-esc="formatLang(env, line['debit'],  digits=2)"/>
+                                            <td style="text-align:right;" t-esc="formatLang(env, line['credit'], digits=2)"/>
+                                            <td style="text-align:right;" t-esc="formatLang(env, line['balance_acc'], digits=2)"/>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+
                         </div>
                     </t>
                 </t>
