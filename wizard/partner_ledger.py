@@ -16,7 +16,8 @@ class MotsoftPartnerLedger(models.TransientModel):
         comodel_name='account.account',
         string='Cuentas Contables',
         default=lambda self: self.env['account.account'].search([
-            ('code', 'in', ['400000', '410000']),  # tu dominio
+            ('code', 'in', ['400000', '410000', '465000', '475000', '475100', '476000',
+                            '551001', '551018', '551019', '551020']),  # tu dominio
         ])
     )
 

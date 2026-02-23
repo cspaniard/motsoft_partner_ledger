@@ -24,7 +24,7 @@
     </record>
 
     <record id="action_partner_ledger_menu" model="ir.actions.act_window">
-        <field name="name">Libro Mayor Empresa</field>
+        <field name="name">Libro Mayor Empresa con Saldo</field>
         <field name="type">ir.actions.act_window</field>
         <field name="res_model">motsoft.partner.ledger</field>
         <field name="view_mode">form</field>
@@ -33,7 +33,7 @@
     </record>
 
     <menuitem id="menu_partner_ledger"
-              name="Libro Mayor Empresa"
+              name="Mayor Empresa con Saldo"
               sequence="5"
               parent="accounting_pdf_reports.menu_finance_legal_statement"
               action="action_partner_ledger_menu"
