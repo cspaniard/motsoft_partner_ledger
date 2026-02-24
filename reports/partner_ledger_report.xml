@@ -2,6 +2,7 @@
 
 <odoo>
     <data>
+
         <template id="partner_ledger_header">
             <div class="header">
                 <div class='col-12' style="font-size:1.5em; font-weight:bold; margin:0px; padding:0px;">
@@ -38,10 +39,12 @@
                 <t t-set="o" t-value="docs"/>
                 <t t-set="data_report_margin_top" t-value="40"/>
                 <t t-set="data_report_header_spacing" t-value="30"/>
+
                 <t t-foreach="partners" t-as="p">
                     <t t-if="not l_first">
                         <p style="page-break-before: always;"/>
                     </t>
+
                     <t t-call="motsoft_partner_ledger.partner_ledger_header">
                         <div class="page">
 
@@ -84,9 +87,16 @@
                                     <t t-foreach="p['lines']" t-as="line">
                                         <tr style="margin: 0px; padding: 0px;">
                                             <td style="text-align:left;">
-                                                <t t-esc="line['date'].strftime('%d/%m/%Y')"/>
+                                                <t t-esc="line['date'].strftime('%d/%m/%Y') if line['date'] else ''"/>
                                             </td>
-                                            <td style="text-align:left;"  t-esc="line['ref']"/>
+                                            <td style="text-align:left;">
+                                                <t t-if="not line['date']">
+                                                    <i><t t-esc="line['ref'] if line['ref'] else ''"/></i>
+                                                </t>
+                                                <t t-else="">
+                                                    <t t-esc="line['ref'] if line['ref'] else ''"/>
+                                                </t>
+                                            </td>
                                             <td style="text-align:right;" t-esc="formatLang(env, line['debit'],  digits=2)"/>
                                             <td style="text-align:right;" t-esc="formatLang(env, line['credit'], digits=2)"/>
                                             <td style="text-align:right;" t-esc="formatLang(env, line['balance_acc'], digits=2)"/>
