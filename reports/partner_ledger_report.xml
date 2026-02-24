@@ -87,9 +87,16 @@
                                     <t t-foreach="p['lines']" t-as="line">
                                         <tr style="margin: 0px; padding: 0px;">
                                             <td style="text-align:left;">
-                                                <t t-esc="line['date'].strftime('%d/%m/%Y')"/>
+                                                <t t-esc="line['date'].strftime('%d/%m/%Y') if line['date'] else ''"/>
                                             </td>
-                                            <td style="text-align:left;"  t-esc="line['ref']"/>
+                                            <td style="text-align:left;">
+                                                <t t-if="not line['date']">
+                                                    <i><t t-esc="line['ref'] if line['ref'] else ''"/></i>
+                                                </t>
+                                                <t t-else="">
+                                                    <t t-esc="line['ref'] if line['ref'] else ''"/>
+                                                </t>
+                                            </td>
                                             <td style="text-align:right;" t-esc="formatLang(env, line['debit'],  digits=2)"/>
                                             <td style="text-align:right;" t-esc="formatLang(env, line['credit'], digits=2)"/>
                                             <td style="text-align:right;" t-esc="formatLang(env, line['balance_acc'], digits=2)"/>
