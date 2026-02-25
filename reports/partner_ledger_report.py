@@ -174,7 +174,7 @@ class ReportPartnerLedger(models.AbstractModel):
                        prev.partner_id,
                        -1       AS id,
                        NULL::date AS date,
-                       'Balance anterior' AS ref,
+                       'Asiento Apertura' AS ref,
                        CASE WHEN prev.balance > 0 THEN  prev.balance ELSE 0 END AS debit,
                        CASE WHEN prev.balance < 0 THEN -prev.balance ELSE 0 END AS credit
                 FROM previous_balance AS prev
