@@ -252,6 +252,24 @@ class ReportPartnerLedger(models.AbstractModel):
 
         detail_rows = self.env.cr.dictfetchall()
 
+        # ── Tras obtener partners y detail_rows ──────────────────────────────
+
+        # Cargamos los nombres de las cuentas especiales desde Odoo
+        special_account_names = {
+            aa.code: aa.name
+            for aa in self.env['account.account'].search([('code', 'in', list(SPECIAL_ACCOUNTS))])
+        }
+
+        # En el resumen: si partner_id es None, usamos el nombre de la cuenta
+        for partner in partners:
+            if partner['partner_id'] is None:
+                partner['name'] = special_account_names.get(partner['account_code'])
+
+        # En el detalle: igual, propagamos antes de indexar
+        for row in detail_rows:
+            if row['partner_id'] is None:
+                row['name'] = special_account_names.get(row['account_code'])
+
         # ── 4. Indexamos por (account_code, partner_id) — None es clave válida ──
         from collections import defaultdict
         detail_index = defaultdict(list)
