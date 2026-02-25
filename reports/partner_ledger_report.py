@@ -40,37 +40,38 @@ class ReportPartnerLedger(models.AbstractModel):
             -- Previous balance: everything before date_from
             previous_balance AS (
                 SELECT aml.account_id,
-                       aml.partner_id,
+                       CASE WHEN aa.code IN %s THEN NULL ELSE aml.partner_id END AS partner_id,
                        SUM(aml.balance) AS balance
                 FROM account_move_line AS aml
                     JOIN account_account AS aa ON aml.account_id = aa.id
                     JOIN account_move    AS am ON aml.move_id    = am.id
                 WHERE aa.code IN %s
                   AND aml.date < %s
-                  AND aml.partner_id IS NOT NULL
+                  AND (aml.partner_id IS NOT NULL OR aa.code IN %s)
                   AND am.state = 'posted'
-                GROUP BY aml.account_id, aml.partner_id
+                GROUP BY aml.account_id,
+                         CASE WHEN aa.code IN %s THEN NULL ELSE aml.partner_id END
             ),
-
             -- Balance for the requested period
             period_balance AS (
                 SELECT aa.code  AS account_code,
                        aa.id    AS account_id,
-                       rp.id    AS partner_id,
-                       rp.name,
+                       CASE WHEN aa.code IN %s THEN NULL ELSE rp.id   END AS partner_id,
+                       CASE WHEN aa.code IN %s THEN NULL ELSE rp.name END AS name,
                        SUM(aml.balance) AS balance
                 FROM account_move_line AS aml
                     JOIN account_account AS aa ON aml.account_id = aa.id
-                    JOIN res_partner     AS rp ON aml.partner_id = rp.id
+                    LEFT JOIN res_partner AS rp ON aml.partner_id = rp.id
                     JOIN account_move    AS am ON aml.move_id    = am.id
                 WHERE aa.code IN %s
                   AND aml.date >= %s
                   AND aml.date <= %s
-                  AND aml.partner_id IS NOT NULL
+                  AND (aml.partner_id IS NOT NULL OR aa.code IN %s)
                   AND am.state = 'posted'
-                GROUP BY aa.code, aa.id, rp.id, rp.name
+                GROUP BY aa.code, aa.id,
+                         CASE WHEN aa.code IN %s THEN NULL ELSE rp.id   END,
+                         CASE WHEN aa.code IN %s THEN NULL ELSE rp.name END
             ),
-
             -- Merge both to avoid losing partners with previous balance but no movements in the period
             all_balances AS (
                 SELECT pb.account_code,
@@ -81,10 +82,9 @@ class ReportPartnerLedger(models.AbstractModel):
                        COALESCE(pb.balance,   0) AS period_balance
                 FROM period_balance AS pb
                 LEFT JOIN previous_balance AS prev ON prev.account_id = pb.account_id
-                                                  AND prev.partner_id = pb.partner_id
-
+                                                  AND (prev.partner_id = pb.partner_id
+                                                       OR (prev.partner_id IS NULL AND pb.partner_id IS NULL))
                 UNION ALL
-
                 -- Partners with previous balance but no movements in the period
                 SELECT aa.code AS account_code,
                        prev.account_id,
@@ -94,15 +94,15 @@ class ReportPartnerLedger(models.AbstractModel):
                        0            AS period_balance
                 FROM previous_balance AS prev
                     JOIN account_account AS aa ON prev.account_id = aa.id
-                    JOIN res_partner     AS rp ON prev.partner_id = rp.id
+                    LEFT JOIN res_partner AS rp ON prev.partner_id = rp.id
                 WHERE NOT EXISTS (
                     SELECT 1
                     FROM period_balance AS pb
                     WHERE pb.account_id = prev.account_id
-                      AND pb.partner_id = prev.partner_id
+                      AND (pb.partner_id = prev.partner_id
+                           OR (pb.partner_id IS NULL AND prev.partner_id IS NULL))
                 )
             )
-
             SELECT account_code,
                    partner_id,
                    name,
@@ -113,12 +113,22 @@ class ReportPartnerLedger(models.AbstractModel):
             WHERE ABS(previous_balance + period_balance) > 0.001
             ORDER BY account_code, name            
         """
+        SPECIAL_ACCOUNTS = ('475000', '475100')
+
         self.env.cr.execute(query_summary, [
-            tuple(account_codes),  # IN %s  (previous_balance)
-            date_start,            # < %s   (previous_balance)
-            tuple(account_codes),  # IN %s  (period_balance)
-            date_start,            # >= %s  (period_balance)
-            date_end,              # <= %s  (period_balance)
+            tuple(SPECIAL_ACCOUNTS),  # 1 - CASE WHEN previous_balance SELECT
+            tuple(account_codes),  # 2 - WHERE aa.code IN (previous_balance)
+            date_start,  # 3 - aml.date
+            tuple(SPECIAL_ACCOUNTS),  # 4 - OR aa.code IN (previous_balance WHERE)
+            tuple(SPECIAL_ACCOUNTS),  # 5 - CASE WHEN previous_balance GROUP BY
+            tuple(SPECIAL_ACCOUNTS),  # 6 - CASE WHEN period_balance SELECT partner_id
+            tuple(SPECIAL_ACCOUNTS),  # 7 - CASE WHEN period_balance SELECT name
+            tuple(account_codes),  # 8 - WHERE aa.code IN (period_balance)
+            date_start,  # 9 - aml.date >=
+            date_end,  # 10 - aml.date <=
+            tuple(SPECIAL_ACCOUNTS),  # 11 - OR aa.code IN (period_balance WHERE)
+            tuple(SPECIAL_ACCOUNTS),  # 12 - CASE WHEN period_balance GROUP BY partner_id
+            tuple(SPECIAL_ACCOUNTS),  # 13 - CASE WHEN period_balance GROUP BY name
         ])
         partners = self.env.cr.dictfetchall()
 
@@ -128,30 +138,45 @@ class ReportPartnerLedger(models.AbstractModel):
             return partners
 
         # Construimos un filtro multi-valor eficiente
-        pairs = [(p['account_code'], p['partner_id']) for p in partners]
+        # pairs = [(p['account_code'], p['partner_id']) for p in partners]
+
+        # ── 2. Preparamos los partner_ids para el detalle ─────────────────────
+        # Los None (cuentas especiales) no pueden ir en IN %s de SQL
+        partner_ids = list({
+            p['partner_id']
+            for p in partners
+            if p['partner_id'] is not None
+        })
+        # Fallback: si solo hay cuentas especiales, el IN %s nunca matcheará
+        # pero la rama OR aa.code IN %s sí traerá esas líneas
+        safe_partner_ids = tuple(partner_ids) if partner_ids else (0,)
 
         query_detail = """
             WITH
             -- Previous balance per account + partner
             previous_balance AS (
                 SELECT aml.account_id,
-                       aml.partner_id,
+                       CASE WHEN aa.code IN %s THEN NULL ELSE aml.partner_id END AS partner_id,
                        SUM(aml.debit - aml.credit) AS balance
                 FROM account_move_line AS aml
                     JOIN account_account AS aa ON aml.account_id = aa.id
                     JOIN account_move    AS am ON aml.move_id    = am.id
                 WHERE aa.code IN %s
                   AND aml.date < %s
-                  AND aml.partner_id IN %s
+                  AND (
+                        (aa.code NOT IN %s AND aml.partner_id IN %s)
+                        OR
+                        (aa.code IN %s)
+                      )
                   AND am.state = 'posted'
-                GROUP BY aml.account_id, aml.partner_id
+                GROUP BY aml.account_id,
+                         CASE WHEN aa.code IN %s THEN NULL ELSE aml.partner_id END
             ),
-
             -- Period lines as real rows
             period_lines AS (
                 SELECT aa.code AS account_code,
                        aa.id   AS account_id,
-                       aml.partner_id,
+                       CASE WHEN aa.code IN %s THEN NULL ELSE aml.partner_id END AS partner_id,
                        aml.id,
                        aml.date,
                        aml.ref,
@@ -163,53 +188,35 @@ class ReportPartnerLedger(models.AbstractModel):
                 WHERE aa.code IN %s
                   AND aml.date >= %s
                   AND aml.date <= %s
-                  AND aml.partner_id IN %s
+                  AND (
+                        (aa.code NOT IN %s AND aml.partner_id IN %s)
+                        OR
+                        (aa.code IN %s)
+                      )
                   AND am.state = 'posted'
             ),
-
             -- Synthetic "Previous balance" row per account + partner combination
             previous_balance_row AS (
                 SELECT aa.code  AS account_code,
                        prev.account_id,
                        prev.partner_id,
-                       -1       AS id,
+                       -1         AS id,
                        NULL::date AS date,
                        'Asiento Apertura' AS ref,
                        CASE WHEN prev.balance > 0 THEN  prev.balance ELSE 0 END AS debit,
                        CASE WHEN prev.balance < 0 THEN -prev.balance ELSE 0 END AS credit
                 FROM previous_balance AS prev
                     JOIN account_account AS aa ON prev.account_id = aa.id
-                -- Uncomment to suppress the row when previous balance is exactly zero:
                 WHERE ABS(prev.balance) > 0.001
             ),
-
             -- Union: previous balance row first, then period lines
             all_lines AS (
-                SELECT account_code,
-                       account_id,
-                       partner_id,
-                       id,
-                       date,
-                       ref,
-                       debit,
-                       credit,
-                       0 AS sort_order
+                SELECT account_code, account_id, partner_id, id, date, ref, debit, credit, 0 AS sort_order
                 FROM previous_balance_row
-
                 UNION ALL
-
-                SELECT account_code,
-                       account_id,
-                       partner_id,
-                       id,
-                       date,
-                       ref,
-                       debit,
-                       credit,
-                       1 AS sort_order
+                SELECT account_code, account_id, partner_id, id, date, ref, debit, credit, 1 AS sort_order
                 FROM period_lines
             )
-
             SELECT account_code,
                    partner_id,
                    id,
@@ -225,28 +232,34 @@ class ReportPartnerLedger(models.AbstractModel):
             FROM all_lines
             ORDER BY account_code, partner_id, sort_order, date, id            
         """
-        partner_ids = list({p['partner_id'] for p in partners})
 
         self.env.cr.execute(query_detail, [
-            tuple(account_codes),   # IN %s  (previous_balance)
-            date_start,             # < %s   (previous_balance)
-            tuple(partner_ids),     # IN %s  (previous_balance)
-            tuple(account_codes),   # IN %s  (period_lines)
-            date_start,             # >= %s  (period_lines)
-            date_end,               # <= %s  (period_lines)
-            tuple(partner_ids),     # IN %s  (period_lines)
+            tuple(SPECIAL_ACCOUNTS),  # 1 - CASE WHEN previous_balance SELECT
+            tuple(account_codes),  # 2 - WHERE aa.code IN (previous_balance)
+            date_start,  # 3 - aml.date
+            tuple(SPECIAL_ACCOUNTS),  # 4 - aa.code NOT IN (previous_balance WHERE)
+            safe_partner_ids,  # 5 - aml.partner_id IN (previous_balance WHERE)
+            tuple(SPECIAL_ACCOUNTS),  # 6 - aa.code IN OR (previous_balance WHERE)
+            tuple(SPECIAL_ACCOUNTS),  # 7 - CASE WHEN previous_balance GROUP BY
+            tuple(SPECIAL_ACCOUNTS),  # 8 - CASE WHEN period_lines SELECT
+            tuple(account_codes),  # 9 - WHERE aa.code IN (period_lines)
+            date_start,  # 10 - aml.date >=
+            date_end,  # 11 - aml.date <=
+            tuple(SPECIAL_ACCOUNTS),  # 12 - aa.code NOT IN (period_lines WHERE)
+            safe_partner_ids,  # 13 - aml.partner_id IN (period_lines WHERE)
+            tuple(SPECIAL_ACCOUNTS),  # 14 - aa.code IN OR (period_lines WHERE)
         ])
 
         detail_rows = self.env.cr.dictfetchall()
 
-        # ── 3. Indexamos los detalles por (account_code, partner_id) ──────
+        # ── 4. Indexamos por (account_code, partner_id) — None es clave válida ──
         from collections import defaultdict
         detail_index = defaultdict(list)
         for row in detail_rows:
             key = (row['account_code'], row['partner_id'])
             detail_index[key].append(row)
 
-        # ── 4. Inyectamos los detalles en cada registro resumen ───────────
+        # ── 5. Inyectamos los detalles en cada registro resumen ───────────────
         for partner in partners:
             key = (partner['account_code'], partner['partner_id'])
             partner['lines'] = detail_index.get(key, [])

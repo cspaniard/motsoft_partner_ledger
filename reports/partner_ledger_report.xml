@@ -68,7 +68,10 @@
                                                    border-top: 1px solid #000;
                                                    border-bottom: 1px solid #000;
                                                    font-weight:bold;">
-                                            <t t-esc="p['account_code']"/> - <t t-esc="p['name']"/>
+                                            <t t-esc="p['account_code']"/>
+                                            <t t-if="p['name']">
+                                                - <t t-esc="p['name']"/>
+                                            </t>
                                         </td>
                                     </tr>
                                     <!-- Separación -->
