@@ -37,6 +37,9 @@
         <template id="partner_ledger_template">
             <t t-call="web.basic_layout">
                 <t t-set="o" t-value="docs"/>
+                <t t-set="at" t-value="account_totals"/>
+                <t t-set="gt" t-value="grand_totals"/>
+
                 <t t-set="data_report_margin_top" t-value="40"/>
                 <t t-set="data_report_header_spacing" t-value="30"/>
 
@@ -111,6 +114,37 @@
                         </div>
                     </t>
                 </t>
+
+                <t t-call="motsoft_partner_ledger.partner_ledger_header">
+                    <div style="page-break-before: always;">
+                        <div class="page">
+                            <table style="width:100%; border-collapse:collapse; table-layout:fixed;">
+                                <colgroup>
+                                    <col style="width:15%;"/>
+                                    <col style="width:15%;"/>
+                                    <col style="width:15%;"/>
+                                    <col style="width:15%;"/>
+                                </colgroup>
+                                <thead>
+                                    <th/>
+                                    <th style="font-weight:normal; text-align:right;">Debe</th>
+                                    <th style="font-weight:normal; text-align:right;">Haber</th>
+                                    <th style="font-weight:normal; text-align:right;">Saldo</th>
+                                </thead>
+                                <tbody>
+                                    <tr style="margin: 0px; padding: 0px;">
+                                        <td style="text-align:left;">Totales Generales:</td>
+                                        <td style="text-align:right;" t-esc="formatLang(env, gt['debit'],  digits=2)"/>
+                                        <td style="text-align:right;" t-esc="formatLang(env, gt['credit'], digits=2)"/>
+                                        <td style="text-align:right;" t-esc="formatLang(env, gt['balance'], digits=2)"/>
+                                    </tr>
+
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </t>
+
             </t>
         </template>
 

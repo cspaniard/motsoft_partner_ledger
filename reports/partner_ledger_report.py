@@ -1,5 +1,7 @@
 from odoo import models, api
 from odoo.tools.misc import formatLang
+from collections import defaultdict
+
 
 class ReportPartnerLedger(models.AbstractModel):
 
@@ -17,18 +19,20 @@ class ReportPartnerLedger(models.AbstractModel):
         wizard = self.env['motsoft.partner.ledger'].browse(docids)
 
         # Ejecutamos nuestra consulta SQL con los parámetros del wizard
-        partners = self.get_partners_by_account(
+        partners_data = self.get_partners_by_account(
             wizard.date_start,
             wizard.date_end,
             wizard.account_ids
         )
 
         return {
-            'doc_ids':      docids,
-            'doc_model':    'motsoft.partner.ledger',
-            'docs':         wizard,         # el registro wizard (opcional, para acceder a sus campos)
-            'partners':     partners,        # nuestra data de la consulta SQL
-            'formatLang':   formatLang,   # <-- lo inyectamos aquí
+            'doc_ids':        docids,
+            'doc_model':      'motsoft.partner.ledger',
+            'docs':           wizard,         # el registro wizard (opcional, para acceder a sus campos)
+            'partners':       partners_data['partners'],        # nuestra data de la consulta SQL
+            'account_totals': partners_data['account_totals'],
+            'grand_totals':   partners_data['grand_totals'],
+            'formatLang':     formatLang,   # <-- lo inyectamos aquí
         }
 
     def get_partners_by_account(self, date_start, date_end, account_ids):
@@ -132,10 +136,17 @@ class ReportPartnerLedger(models.AbstractModel):
         ])
         partners = self.env.cr.dictfetchall()
 
+        account_totals = defaultdict(lambda: {'debit': 0.0, 'credit': 0.0, 'balance': 0.0})
+        grand_totals = {'debit': 0.0, 'credit': 0.0, 'balance': 0.0}
+
         # ── 2. Consulta detalle para TODOS los pares (account_code, partner_id)
         #       en una sola llamada a la BD, luego se distribuye en Python ──
         if not partners:
-            return partners
+            return {
+                'partners': partners,
+                'account_totals': dict(account_totals),
+                'grand_totals': grand_totals,
+            }
 
         # Construimos un filtro multi-valor eficiente
         # pairs = [(p['account_code'], p['partner_id']) for p in partners]
@@ -271,7 +282,6 @@ class ReportPartnerLedger(models.AbstractModel):
                 row['name'] = special_account_names.get(row['account_code'])
 
         # ── 4. Indexamos por (account_code, partner_id) — None es clave válida ──
-        from collections import defaultdict
         detail_index = defaultdict(list)
         for row in detail_rows:
             key = (row['account_code'], row['partner_id'])
@@ -282,4 +292,19 @@ class ReportPartnerLedger(models.AbstractModel):
             key = (partner['account_code'], partner['partner_id'])
             partner['lines'] = detail_index.get(key, [])
 
-        return partners
+        # ── 6. Totales por cuenta y grand total ──────────────────────────────
+        for partner in partners:
+            code = partner['account_code']
+            for line in partner['lines']:
+                account_totals[code]['debit'] += line['debit']
+                account_totals[code]['credit'] += line['credit']
+                account_totals[code]['balance'] += line['debit'] - line['credit']
+                grand_totals['debit'] += line['debit']
+                grand_totals['credit'] += line['credit']
+                grand_totals['balance'] += line['debit'] - line['credit']
+
+        return {
+            'partners': partners,
+            'account_totals': dict(account_totals),
+            'grand_totals': grand_totals,
+        }
