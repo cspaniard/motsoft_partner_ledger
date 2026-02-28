@@ -7,8 +7,8 @@
         <field name="arch" type="xml">
             <form string="Libro Mayor Empresa">
                 <group>
-                    <field name="date_start" string="Fecha Inicio:"/>
-                    <field name="date_end" string="Fecha Final:"/>
+                    <field name="date_start" string="Fecha Inicio:" required="True"/>
+                    <field name="date_end" string="Fecha Final:" required="True"/>
                 </group>
 
                 <group>
@@ -16,25 +16,18 @@
                         <field name="account_filter"/>
                     </group>
                     <group>
-                        <button name="search_accounts"
-                                type="object"
-                                string="Buscar"
-                                class="btn-primary"
-                                icon="fa-search"/>
+                        <button name="search_accounts" type="object" string="Buscar"
+                                class="btn-primary" icon="fa-search"/>
                     </group>
                 </group>
 
                 <group>
                     <field name="tax_box"/>
-                    <field name="account_ids"
-                           widget="many2many_tags"
-                           string="Cuentas Contables:"/>
+                    <field name="account_ids" widget="many2many_tags" string="Cuentas Contables:"/>
+
                     <label string="" for="clear_accounts"/>
-                    <button name="clear_accounts"
-                            type="object"
-                            string="Eliminar Cuentas"
-                            class="btn-secondary"
-                            icon="fa-trash"/>
+                    <button name="clear_accounts" type="object" string="Eliminar Cuentas"
+                            class="btn-secondary" icon="fa-trash"/>
                 </group>
 
                 <footer>
