@@ -7,8 +7,8 @@
         <field name="arch" type="xml">
             <form string="Libro Mayor Empresa">
                 <group>
-                    <field name="date_start" string="Fecha Inicio:" required="True"/>
-                    <field name="date_end" string="Fecha Final:" required="True"/>
+                    <field name="date_start" required="True"/>
+                    <field name="date_end" required="True"/>
                 </group>
 
                 <group>
@@ -23,7 +23,7 @@
 
                 <group>
                     <field name="tax_box"/>
-                    <field name="account_ids" widget="many2many_tags" string="Cuentas Contables:"/>
+                    <field name="account_ids" widget="many2many_tags"/>
 
                     <label string="" for="clear_accounts"/>
                     <button name="clear_accounts" type="object" string="Eliminar Cuentas"

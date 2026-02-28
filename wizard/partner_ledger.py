@@ -10,8 +10,8 @@ class MotsoftPartnerLedger(models.TransientModel):
 
     company_name = fields.Char(default=lambda self: self.env.user.company_id.name, readonly=True)
 
-    date_start = fields.Date(string="Fecha de inicio:")
-    date_end = fields.Date(string="Fecha final:")
+    date_start = fields.Date(string="Fecha Inicio:")
+    date_end = fields.Date(string="Fecha Final:")
     tax_box = fields.Selection([
         ('237', '237'),
         ('242', '242'),
@@ -23,7 +23,7 @@ class MotsoftPartnerLedger(models.TransientModel):
 
     account_ids = fields.Many2many(
         comodel_name='account.account',
-        string='Cuentas Contables'
+        string='Cuentas Contables:'
     )
 
     def get_reload_data(self):
